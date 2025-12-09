@@ -1,0 +1,18 @@
+ok we zullen starten met regels:
+
+- Als er "mechanical" in het folderpad staat: Equipment Document = 1. Mechanical
+- Als er "electrical" in het folderpad staat: Equipment Document = 2. Electrical
+- Als er "pneumatic" in het folderpad staat: Equipment Document = 3. Pneumatic/Hydraulic/Media
+- Als er "datasheet" in het folderpad staat: Equipment Document = 4. Data Sheet en Name Document = 4.1 Data Sheet
+- Als er "legal" in het folderpad staat: Equipment Document = 5. Legal
+- Als er "safety" in het folderpad staat: Equipment Document = 6. Safety
+- Als er "technical" in het folderpad staat: Equipment Document = 7. Design prerequisites en Name Document = 7.3 Technical data
+- Als er "function" in het folderpad staat: Equipment Document = 8. Function Description = 8.1 Function description
+- Als er "operation" in het folderpad staat: Equipment Document = 9. Manuals en Name Document = 9.1 Operation instructions
+- Als er "Initial" in het folderpad staat: Equipment Document = 10. Settings & Measurements en Name Document = 10.2 Initial settings data
+- Als er "measuring" in het folderpad staat: Equipment Document = 10. Settings & Measurements en Name Document = 10.4 Measurements reports
+- Als er "maintenance" in het folderpad staat: Equipment Document = 11. Maintenance en Name Document = 11.2 Maint-repair instructions
+- Als er "service" in het folderpad staat: Equipment Document = 12. Supplier information en Name Document = 12.1 Warranty & service agreement
+
+
+ en ik wil graag dat ze werken op alle case sensitivity indien dat het geval is in powershell, dus technical of Technical is hetzelfde. Ook als er staat bijvoorbeeld Technical Functions, wordt technical nog altijd herkend. De woorden moeten dus gewoon voorkomen in het file pad.
