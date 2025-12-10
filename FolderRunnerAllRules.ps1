@@ -169,6 +169,9 @@ function Get-StationInfoFromPath {
 # ---------------------------------------------------------
 # Functie: bepaal metadata voor één file op basis van pad + extensie + station/machine info
 # ---------------------------------------------------------
+# ---------------------------------------------------------
+# Functie: bepaal metadata voor één file op basis van pad + extensie + station/machine info
+# ---------------------------------------------------------
 function Get-MetadataForFile {
     param(
         [string]$fileRef,    # volledige server-relative URL
@@ -180,7 +183,8 @@ function Get-MetadataForFile {
     $values = @{}
 
     # Alles case-insensitive maken
-    $pathLower = $fileRef.ToLower()
+    $pathLower    = $fileRef.ToLower()
+    $fileNameLower = $fileName.ToLower()
 
     # -----------------------------------------------------
     # 1. Discipline-regels (mechanical / electrical / pneumatic)
@@ -209,6 +213,14 @@ function Get-MetadataForFile {
                 $values[$col_NameDocument] = "2.4 Electrical Part list"
             }
         }
+
+        # Filename-regels binnen "electrical"
+        if ($fileNameLower -like "*cable*") {
+            $values[$col_NameDocument] = "2.1 Cable Calculation"
+        }
+        elseif ($fileNameLower -like "*ip address*") {
+            $values[$col_NameDocument] = "2.2 IP addresses"
+        }
     }
     elseif ($pathLower -like "*pneumatic*") {
         $values[$col_EquipmentDocument] = "3. Pneumatic/Hydraulic/Media"
@@ -232,40 +244,111 @@ function Get-MetadataForFile {
 
     if ($pathLower -like "*legal*") {
         $values[$col_EquipmentDocument] = "5. Legal"
+        $values[$col_NameDocument]      = "5.2 EC Declaration of Conformity"
     }
 
     if ($pathLower -like "*safety*") {
         $values[$col_EquipmentDocument] = "6. Safety"
+
+        # Filename-regels binnen "safety"
+        if ($fileNameLower -like "*inspection*" -and $fileNameLower -like "*report*") {
+            $values[$col_NameDocument] = "6.2 Inspection reports"
+        }
+        elseif ($fileNameLower -like "*test*" -and $fileNameLower -like "*report*") {
+            $values[$col_NameDocument] = "6.10 Safety test report"
+        }
+        elseif ($fileNameLower -like "*move*" -and $fileNameLower -like "*layout*") {
+            $values[$col_NameDocument] = "6.6 Safe move layout"
+        }
+        elseif ($fileNameLower -like "*move*" -and $fileNameLower -like "*report*") {
+            $values[$col_NameDocument] = "6.7 Safe move report"
+        }
+        elseif ($fileNameLower -like "*plc*" -and $fileNameLower -like "*report*") {
+            $values[$col_NameDocument] = "6.12 Safety PLC report"
+        }
+        elseif ($fileNameLower -like "*matrix*") {
+            $values[$col_NameDocument] = "6.9 Safety matrix"
+        }
+        elseif ($fileNameLower -like "*layout*") {
+            $values[$col_NameDocument] = "6.8 Safety layout"
+        }
+        elseif ($fileNameLower -like "*placard*") {
+            $values[$col_NameDocument] = "6.11 Safety placards"
+        }
+        elseif ($fileNameLower -like "*risk*" -or $fileNameLower -like "*assessment*") {
+            $values[$col_NameDocument] = "6.5 Risk assessment"
+        }
+        elseif ($fileNameLower -like "*personal*" -or $fileNameLower -like "*equipment*") {
+            $values[$col_NameDocument] = "6.3 Personal safety equipment"
+        }
+        elseif ($fileNameLower -like "*general*" -or $fileNameLower -like "*instruction*") {
+            $values[$col_NameDocument] = "6.1 General safety instructions"
+        }
     }
 
     if ($pathLower -like "*technical*") {
         $values[$col_EquipmentDocument] = "7. Design prerequisites"
         $values[$col_NameDocument]      = "7.3 Technical data"
+
+        # Filename-regels binnen "technical"
+        if ($fileNameLower -like "*fmea*") {
+            $values[$col_NameDocument] = "7.1 FMEA"
+        }
+        elseif (($fileNameLower -like "*motor*" -or $fileNameLower -like "*belt*") -and $fileNameLower -like "*calc*") {
+            $values[$col_NameDocument] = "7.4 Motor and belt calculation"
+        }
+        elseif ($fileNameLower -like "*stress*" -or $fileNameLower -like "*calculation*") {
+            $values[$col_NameDocument] = "7.2 Stress calculation"
+        }
+        elseif ($fileNameLower -like "*time*" -or $fileNameLower -like "*analysis*") {
+            $values[$col_NameDocument] = "7.6 Time analysis"
+        }
     }
 
     if ($pathLower -like "*function*") {
         $values[$col_EquipmentDocument] = "8. Function Description"
         $values[$col_NameDocument]      = "8.1 Function description"
+
+        # Filename-regels binnen "function"
+        if ($fileNameLower -like "*tool*" -or $fileNameLower -like "*tree*") {
+            $values[$col_NameDocument] = "8.2 Tool Tree"
+        }
     }
 
     if ($pathLower -like "*operation*") {
         $values[$col_EquipmentDocument] = "9. Manuals"
         $values[$col_NameDocument]      = "9.1 Operation instructions"
+
+        # Filename-regels binnen "operation"
+        if ($fileNameLower -like "*training*" -or $fileNameLower -like "*education*") {
+            $values[$col_NameDocument] = "9.2 Training material"
+        }
     }
 
     if ($pathLower -like "*initial*") {
         $values[$col_EquipmentDocument] = "10. Settings & Measurements"
         $values[$col_NameDocument]      = "10.2 Initial settings data"
-    }
 
-    if ($pathLower -like "*measuring*") {
-        $values[$col_EquipmentDocument] = "10. Settings & Measurements"
-        $values[$col_NameDocument]      = "10.4 Measurements reports"
+        # Filename-regels binnen "Initial"
+        if ($fileNameLower -like "*energy*" -or $fileNameLower -like "*consumption*") {
+            $values[$col_NameDocument] = "10.3 Energy consumption report"
+        }
+        elseif ($fileNameLower -like "*measurements*" -or $fileNameLower -like "*measuring*") {
+            $values[$col_NameDocument] = "10.4 Measurements reports"
+        }
+        elseif ($fileNameLower -like "*clamp*" -or $fileNameLower -like "*force*") {
+            $values[$col_NameDocument] = "10.1 Clamp/assembly force sheet"
+        }
     }
 
     if ($pathLower -like "*maintenance*") {
         $values[$col_EquipmentDocument] = "11. Maintenance"
         $values[$col_NameDocument]      = "11.2 Maint-repair instructions"
+
+        # Filename-regel binnen "maintenance"
+        if ($fileNameLower -like "*matrix*") {
+            $values[$col_NameDocument] = "11.1 Maintenance matrix"
+        }
     }
 
     if ($pathLower -like "*service*") {
@@ -283,6 +366,7 @@ function Get-MetadataForFile {
 
     # -----------------------------------------------------
     # 4. Stationnummer + MachineCode uit pad halen + beide lookups zetten
+    #    (zelfde logica als je huidige script)
     # -----------------------------------------------------
     if ($col_StationLookup -or $col_MachineCodeLookup) {
 
@@ -294,11 +378,7 @@ function Get-MetadataForFile {
             if ($col_StationLookup) {
                 $stationId = Get-StationLookupId -stationNumber $stationInfo.StationNumber
                 if ($stationId) {
-                    Write-Host "  Station gevonden: $($stationInfo.StationNumber) → Station ID = $stationId" -ForegroundColor Cyan
                     $values[$col_StationLookup] = $stationId
-                }
-                else {
-                    Write-Host "  [station] Geen Station-ID gevonden voor '$($stationInfo.StationNumber)'." -ForegroundColor DarkYellow
                 }
             }
 
@@ -306,11 +386,7 @@ function Get-MetadataForFile {
             if ($col_MachineCodeLookup -and $stationInfo.MachineCode) {
                 $machineId = Get-MachineLookupId -machineCode $stationInfo.MachineCode
                 if ($machineId) {
-                    Write-Host "  MachineCode gevonden: $($stationInfo.MachineCode) → Machine ID = $machineId" -ForegroundColor Cyan
                     $values[$col_MachineCodeLookup] = $machineId
-                }
-                else {
-                    Write-Host "  [machine] Geen Machine-ID gevonden voor '$($stationInfo.MachineCode)'." -ForegroundColor DarkYellow
                 }
             }
         }
@@ -318,6 +394,7 @@ function Get-MetadataForFile {
 
     return $values
 }
+
 
 # ---------------------------------------------------------
 # Hoofdscript: loop over alle items en pas regels toe
