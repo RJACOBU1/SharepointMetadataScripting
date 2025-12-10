@@ -385,10 +385,13 @@ function Get-MetadataForFile {
 
 
 # ---------------------------------------------------------
-# Hoofdscript: loop over alle items en pas regels toe
+# Hoofdscript: loop over alle items en pas regels toe (met batching)
 # ---------------------------------------------------------
 
 Write-Host "Ophalen van items uit lijst '$listName'..." -ForegroundColor Cyan
+
+# 1 batch voor alle updates
+$batch = New-PnPBatch
 
 Get-PnPListItem -List $listName -PageSize 2000 -ScriptBlock {
     param($items)
@@ -419,14 +422,17 @@ Get-PnPListItem -List $listName -PageSize 2000 -ScriptBlock {
             continue
         }
 
-        Write-Host "Update item $($item.Id): $fileName" -ForegroundColor Yellow
+        Write-Host "Queue update item $($item.Id): $fileName" -ForegroundColor Yellow
         $valuesToSet.GetEnumerator() | ForEach-Object {
             Write-Host "  $($_.Key) = $($_.Value)"
         }
 
-        # Metadata wegschrijven naar SharePoint
-        Set-PnPListItem -List $listName -Identity $item.Id -Values $valuesToSet | Out-Null
+        # Voeg update toe aan batch (geen directe call naar SharePoint)
+        Set-PnPListItem -List $listName -Identity $item.Id -Values $valuesToSet -Batch $batch | Out-Null
     }
 }
 
+Write-Host "Batch uitvoeren..." -ForegroundColor Cyan
+Invoke-PnPBatch -Batch $batch
 Write-Host "Klaar. Alle metadata-regels + station- en machine-lookups toegepast." -ForegroundColor Green
+
