@@ -157,9 +157,6 @@ function Get-StationInfoFromPath {
 # ---------------------------------------------------------
 # Functie: bepaal metadata voor één file op basis van pad + extensie + station/machine info
 # ---------------------------------------------------------
-# ---------------------------------------------------------
-# Functie: bepaal metadata voor één file op basis van pad + extensie + station/machine info
-# ---------------------------------------------------------
 function Get-MetadataForFile {
     param(
         [string]$fileRef,    # volledige server-relative URL
