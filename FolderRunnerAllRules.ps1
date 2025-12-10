@@ -2,36 +2,28 @@
 # VERBINDEN MET JE SITE (pas aan naar jouw omgeving)
 # ---------------------------------------------------------
 
-# Import-Module PnP.PowerShell
 # Connect-PnPOnline -Url "https://intranet.volvocars.net/sites/TestZone" `
 #     -ClientId "10598e56-f5f6-42aa-bbcf-549965e26add" `
 #     -Interactive
 
 # ---------------------------------------------------------
-# Instellingen
+# DECLARATIONS
 # ---------------------------------------------------------
 
-# Naam van de documentbibliotheek
-$listName = "Documents"              # bv. "Documents" of "Equipment Library"
+    # Naam van de documentbibliotheek
+$listName = "Documents"
 
-# Optioneel: enkel items onder een bepaalde rootfolder verwerken
-# (server relative path na de site-URL, bv. /sites/TestZone/Shared Documents/Documents)
-# Zet op $null als je ALLES in de bibliotheek wil.
+    # (server relative path na de site-URL, bv. /sites/TestZone/Shared Documents/Documents) of $null for everything.
 $rootFolderFilter = "/sites/TestZone/Shared Documents/010 Crossconveyor"
-# $rootFolderFilter = "/sites/TestZone/Shared Documents/Documents"
 
-# Velden (interne namen!)
-$col_EquipmentDocument   = "EquipmentDocument"      # interne naam van "Equipment Document"
-$col_NameDocument        = "Name_x0020_Document"    # interne naam van "Name Document"
-$col_StationLookup       = "StationNumbers"         # interne naam van lookupkolom naar Station_Numbers
-$col_MachineCodeLookup   = "MachineCode"            # interne naam van lookupkolom naar Maximo_Machine_Codes_List
+    # Velden (interne namen, _x0020_ = spatie)
+$col_EquipmentDocument   = "EquipmentDocument"     
+$col_NameDocument        = "Name_x0020_Document"    
+$col_StationLookup       = "StationNumbers"        
+$col_MachineCodeLookup   = "MachineCode"            
 
-# Prefix voor station/machine codes (wordt vóór segment gezet, bv. "110CC102" -> "B-4122110CC102")
+    # Prefix voor station/machine codes (wordt vóór segment gezet, bv. "110CC102" -> "B-4122110CC102")
 $machinePrefix = "B-4122"
-
-# ---------------------------------------------------------
-# Lookup-config voor StationNumbers
-# ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # Lookup-config voor StationNumbers (aparte lijst)
@@ -46,7 +38,6 @@ function Initialize-StationCache {
 
     Write-Host "Station_Numbers cache initialiseren..." -ForegroundColor Cyan
 
-    # Haal alle items op met hun Title (waar StationNumber in zit)
     $items = Get-PnPListItem -List $stationListName -PageSize 2000 -Fields "Title"
 
     foreach ($it in $items) {
@@ -89,7 +80,6 @@ function Initialize-MachineCache {
 
     Write-Host "Machine_Codes cache initialiseren..." -ForegroundColor Cyan
 
-    # We gaan ervan uit dat de MachineCode in Title staat
     $items = Get-PnPListItem -List $machineListName -PageSize 2000 -Fields "Title"
 
     foreach ($it in $items) {
@@ -120,11 +110,12 @@ function Get-MachineLookupId {
 
 
 # ---------------------------------------------------------
-# Station + Machine info uit pad halen
-# Segmentvorm: 110CC102 / 120CR105 / 130CLT205 / ...
-# Layout: 3 cijfers + 2-3 letters + 3 cijfers
-# StationNumber = prefix + eerste 3 cijfers   -> B-4122110
-# MachineCode   = prefix + volledige segment  -> B-4122110CC102
+# LOGICA:
+    # Station + Machine info uit pad halen
+    # Segmentvorm: 110CC102 / 120CR105 / 130CLT205 / ...
+    # Layout van eindvorm: 3 cijfers + 2-3 letters + 3 cijfers
+    # StationNumber = prefix + eerste 3 cijfers   -> B-4122110
+    # MachineCode   = prefix + volledige segment  -> B-4122110CC102
 # ---------------------------------------------------------
 
 function Get-StationInfoFromPath {
@@ -147,14 +138,14 @@ function Get-StationInfoFromPath {
     Write-Host "  [station-scan] Segments: $($segments -join ' | ')" -ForegroundColor DarkGray
 
     # We verwachten:
-    # segments[1] = bv. "110CC102", "120CR105", "130CLT205", ...
+    # segments[0] = bv. "110CC102", "120CR105", "130CLT205", ...
     if ($segments.Length -lt 2) {
         return $null
     }
 
     $machineSegment = $segments[0]
 
-    # Patroon: 3 cijfers + 2-3 letters + 3 cijfers
+    # Opdeling: 3 cijfers + 2-3 letters + 3 cijfers
     if ($machineSegment -match '^(?<base>\d{3})(?<letters>[A-Za-z]{2,3})(?<digits>\d{3})$') {
 
         $base        = $matches['base']   # bv. "110"

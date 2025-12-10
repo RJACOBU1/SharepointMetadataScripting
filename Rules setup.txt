@@ -1,4 +1,3 @@
-ok we zullen starten met regels:
 
 - Als er "mechanical" in het folderpad staat: Equipment Document = 1. Mechanical
 - Als er "electrical" in het folderpad staat: Equipment Document = 2. Electrical
@@ -14,5 +13,10 @@ ok we zullen starten met regels:
 - Als er "maintenance" in het folderpad staat: Equipment Document = 11. Maintenance en Name Document = 11.2 Maint-repair instructions
 - Als er "service" in het folderpad staat: Equipment Document = 12. Supplier information en Name Document = 12.1 Warranty & service agreement
 
+- Als filetype ".xls" of ".xlsx" in 1. Mechanical: Name Document = 1.2 Mechanical Part List
+- Als filetype ".xls" of ".xlsx" in 2. Electrical: Name Document = 2.4 Electrical Part List
+- Als filetype ".xls" of ".xlsx" in 3. Pneumatic/Hydraulic/Media: Name Document = 3.2 Pneumatic/Hydraulic/Media Part list
+- Als filetype "mp4" is: Equipment Name = 9. Manuals en Name Document = 9.1 Operation instructions
 
- en ik wil graag dat ze werken op alle case sensitivity indien dat het geval is in powershell, dus technical of Technical is hetzelfde. Ook als er staat bijvoorbeeld Technical Functions, wordt technical nog altijd herkend. De woorden moeten dus gewoon voorkomen in het file pad.
+
+Het werkt op elke case sensitivity
