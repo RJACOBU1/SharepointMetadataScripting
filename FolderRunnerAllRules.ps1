@@ -19,94 +19,82 @@ $rootFolderFilter = "/sites/TestZone/Shared Documents/010 Crossconveyor"
     # Velden (interne namen, _x0020_ = spatie)
 $col_EquipmentDocument   = "EquipmentDocument"     
 $col_NameDocument        = "Name_x0020_Document"    
-$col_StationLookup       = "StationNumbers"        
-$col_MachineCodeLookup   = "MachineCode"            
+$col_StationLookup       = "StationNumberEff"        
+$col_MachineCodeLookup   = "MachineCodeEff"            
 
     # Prefix voor station/machine codes (wordt vóór segment gezet, bv. "110CC102" -> "B-4122110CC102")
 $machinePrefix = "B-4122"
 
 # ---------------------------------------------------------
-# Lookup-config voor StationNumbers (aparte lijst)
+# Lookup-config voor LOCATIONS_Maximo (één lijst: Title = nummer)
 # ---------------------------------------------------------
 
-$stationListName           = "Station_Numbers"
-$stationLookupByNumber     = @{}      # StationNumber (tekst) -> ID
-$stationCacheInitialized   = $false
+$locationListName         = "LOCATIONS_Maximo"
+$locationLookupByTitle    = @{}   # Title (nummer als tekst) -> ID
+$locationCacheInitialized = $false
 
-function Initialize-StationCache {
-    if ($stationCacheInitialized) { return }
+function Initialize-LocationCache {
+    if ($locationCacheInitialized) { return }
 
-    Write-Host "Station_Numbers cache initialiseren..." -ForegroundColor Cyan
+    Write-Host "LOCATIONS_Maximo cache initialiseren..." -ForegroundColor Cyan
 
-    $items = Get-PnPListItem -List $stationListName -PageSize 2000 -Fields "Title"
+    # We hebben enkel de Title nodig (daarin staan de nummers)
+    $items = Get-PnPListItem -List $locationListName -PageSize 2000 -Fields "Title"
 
     foreach ($it in $items) {
-        $num = [string]$it["Title"]
-        if ([string]::IsNullOrWhiteSpace($num)) { continue }
+        $titleValue = $null
 
-        $stationLookupByNumber[$num] = $it.Id
+        if ($it.FieldValues.ContainsKey("Title")) {
+            $titleValue = [string]$it["Title"]
+        }
+
+        # Trim en alleen toevoegen als er effectief iets in staat
+        if (-not [string]::IsNullOrWhiteSpace($titleValue)) {
+            $cleanKey = $titleValue.Trim()
+            $locationLookupByTitle[$cleanKey] = $it.Id
+        }
     }
 
-    $global:stationCacheInitialized = $true
-    Write-Host "Station_Numbers cache geladen: $($stationLookupByNumber.Count) stations." -ForegroundColor Green
+    $global:locationCacheInitialized = $true
+    Write-Host "LOCATIONS_Maximo cache geladen: $($locationLookupByTitle.Count) items." -ForegroundColor Green
+}
+
+function Get-LocationLookupId {
+    param(
+        [string]$number  # kan stationnummer of machinecode zijn, beiden zoeken op Title
+    )
+
+    if ([string]::IsNullOrWhiteSpace($number)) {
+        return $null
+    }
+
+    Initialize-LocationCache
+
+    $key = $number.Trim()
+
+    if ($locationLookupByTitle.ContainsKey($key)) {
+        return $locationLookupByTitle[$key]
+    }
+
+    Write-Warning "Geen item-ID gevonden voor '$key' in lijst '$locationListName'."
+    return $null
 }
 
 function Get-StationLookupId {
     param(
         [string]$stationNumber
     )
-
-    Initialize-StationCache
-
-    if ($stationLookupByNumber.ContainsKey($stationNumber)) {
-        return $stationLookupByNumber[$stationNumber]
-    }
-
-    Write-Warning "Geen Station-ID gevonden voor '$stationNumber' in lijst '$stationListName'."
-    return $null
-}
-
-
-# ---------------------------------------------------------
-# Lookup-config voor MachineCode (aparte lijst)
-# ---------------------------------------------------------
-
-$machineListName           = "Machine_Codes"
-$machineLookupByCode       = @{}      # MachineCode (tekst) -> ID
-$machineCacheInitialized   = $false
-
-function Initialize-MachineCache {
-    if ($machineCacheInitialized) { return }
-
-    Write-Host "Machine_Codes cache initialiseren..." -ForegroundColor Cyan
-
-    $items = Get-PnPListItem -List $machineListName -PageSize 2000 -Fields "Title"
-
-    foreach ($it in $items) {
-        $code = [string]$it["Title"]
-        if ([string]::IsNullOrWhiteSpace($code)) { continue }
-
-        $machineLookupByCode[$code] = $it.Id
-    }
-
-    $global:machineCacheInitialized = $true
-    Write-Host "Machine_Codes cache geladen: $($machineLookupByCode.Count) codes." -ForegroundColor Green
+    return Get-LocationLookupId -number $stationNumber
 }
 
 function Get-MachineLookupId {
     param(
         [string]$machineCode
     )
-
-    Initialize-MachineCache
-
-    if ($machineLookupByCode.ContainsKey($machineCode)) {
-        return $machineLookupByCode[$machineCode]
-    }
-
-    Write-Warning "Geen Machine-ID gevonden voor '$machineCode' in lijst '$machineListName'."
-    return $null
+    return Get-LocationLookupId -number $machineCode
 }
+
+
 
 
 # ---------------------------------------------------------
