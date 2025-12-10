@@ -8,28 +8,30 @@
 - Als er "legal" in het folderpad staat: Equipment Document = 5. Legal
 - Als er "safety" in het folderpad staat: Equipment Document = 6. Safety
     in de filename "general" of "instruction" staat: Name Document = 6.1 General safety instructions
-    in de filename "inspection" staat: Name Document = 6.2 Inspection reports
+    in de filename "inspection" en "report" staat: Name Document = 6.2 Inspection reports
     in de filename "personal" of "equipment" staat: Name Document = 6.3 Personal safety equipment
     in de filename "risk" of "assessment" staat: Name Document = 6.5 Risk assessment
-    in de filename "move layout" staat: Name Document = 6.6 Safe move layout
-    in de filename "move report" staat: Name Document = 6.7 Safe move report
+    in de filename "move" en "layout" staat: Name Document = 6.6 Safe move layout
+    in de filename "move" en "report" staat: Name Document = 6.7 Safe move report
     in de filename "layout" staat: Name Document = 6.8 Safety layout
     in de filename "matrix" staat: Name Document = 6.9 Safety matrix
-    in de filename "test report" staat: Name Document = 6.10 Safety test report
+    in de filename "test" en "report" staat: Name Document = 6.10 Safety test report
     in de filename "placard" staat: Name Document = 6.11 Safety placards
-    in de filename "PLC report": Name Document = 6.12 Safety PLC report
+    in de filename "PLC" en "report": Name Document = 6.12 Safety PLC report
 - Als er "technical" in het folderpad staat: Equipment Document = 7. Design prerequisites en Name Document = 7.3 Technical data
     in de filename "FMEA" staat: Name Document = 7.1 FMEA
     in de filename "stress" of "calculation" staat: Name Document = 7.2 Stress calculation
-    in de filename "data" staat: Name Document = 7.3 Technical data
-
-    .... To be continued
-
-- Als er "function" in het folderpad staat: Equipment Document = 8. Function Description = 8.1 Function description
+    in de filename "motor" of "belt" en "calculation" staat: Name Document = 7.4 Motor and belt calculation
+    in de filename "time" of "analysis" staat: Name Document = 7.6 Time analysis
+- Als er "function" in het folderpad staat: Equipment Document = 8. Name Document = 8.1 Function description
+    in de filename "tool" of "tree": Name Document = 8.2 Tool Tree
 - Als er "operation" in het folderpad staat: Equipment Document = 9. Manuals en Name Document = 9.1 Operation instructions
+    in de filename "training" staat: Name Document = 9.2 Training material
 - Als er "Initial" in het folderpad staat: Equipment Document = 10. Settings & Measurements en Name Document = 10.2 Initial settings data
-- Als er "measuring" in het folderpad staat: Equipment Document = 10. Settings & Measurements en Name Document = 10.4 Measurements reports
+    in de filename "energy" of "consumption" staat: Name Document = 10.3 Energy consumption report
+    in de filename "measurements" of "measuring" staat: Name Document = 10.4 Measurements reports
 - Als er "maintenance" in het folderpad staat: Equipment Document = 11. Maintenance en Name Document = 11.2 Maint-repair instructions
+    in de filename "matrix" staat: Name Document: 11.1 Maintenance matrix
 - Als er "service" in het folderpad staat: Equipment Document = 12. Supplier information en Name Document = 12.1 Warranty & service agreement
 
 - Als filetype ".xls" of ".xlsx" in 1. Mechanical: Name Document = 1.2 Mechanical Part List
