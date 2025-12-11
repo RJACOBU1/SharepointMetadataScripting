@@ -1,0 +1,250 @@
+param(
+    # Site URL
+    [string]$SiteUrl = "https://intranet.volvocars.net/sites/TestZone",
+
+    # Naam van de documentbibliotheek
+    [string]$LibraryName = "Documents",
+
+    # FLATTENED map waar al je samengezette files staan
+    # vb. "/sites/TestZone/Shared Documents/FLATTENED"
+    [string]$FlattenedFolderRelativeUrl = "/sites/TestZone/Shared Documents/FLATTENED",
+
+    # Testmodus: toon wat er zou gebeuren, maar voer niets uit
+    [switch]$WhatIf
+)
+
+
+### 2. Lijst + veld-controle
+$list = Get-PnPList -Identity $LibraryName
+
+# Alle velden behandelen als LOOKUP
+$lookupFields = @(
+    "EquipmentDocument",      # interne naam
+    "Name_x0020_Document",    # interne naam
+    "StationNumberEff",
+    "MachineCodeEff"
+)
+
+$validLookupFields = @()
+foreach ($fname in $lookupFields) {
+    $field = Get-PnPField -List $LibraryName -Identity $fname -ErrorAction SilentlyContinue
+    if ($field) {
+        $validLookupFields += $fname
+    } else {
+        Write-Host "WAARSCHUWING: Lookupveld '$fname' bestaat niet en wordt genegeerd." -ForegroundColor Yellow
+    }
+}
+
+if ($validLookupFields.Count -eq 0) {
+    Write-Host "Geen geldige lookupvelden gevonden. Stop."
+    return
+}
+
+Write-Host "Lookupvelden die gemerged worden: $($validLookupFields -join ', ')"
+
+### 3. Items ophalen in de FLATTENED folder
+
+$fieldsToLoad = @("FileLeafRef","FileRef","FSObjType","ID")
+$fieldsToLoad += $validLookupFields
+
+Write-Host "Velden die geladen worden: $($fieldsToLoad -join ', ')"
+
+Write-Host "Ophalen van items onder folder: $FlattenedFolderRelativeUrl ..."
+$items = Get-PnPListItem -List $LibraryName -PageSize 500 `
+    -FolderServerRelativeUrl $FlattenedFolderRelativeUrl `
+    -Fields $fieldsToLoad `
+    -ScriptBlock { param($b) $b }
+
+# Enkel bestanden
+$files = $items | Where-Object { $_["FSObjType"] -eq 0 }
+
+Write-Host "Aantal bestanden in FLATTENED: $($files.Count)"
+
+if ($files.Count -eq 0) {
+    Write-Host "Geen bestanden gevonden in de FLATTENED map. Stop."
+    return
+}
+
+### Helper voor lookup IDs
+
+function Get-LookupIds {
+    param($lv)
+    $ids = @()
+    if (-not $lv) { return $ids }
+
+    if ($lv -is [System.Array]) {
+        foreach ($itemLV in $lv) {
+            if ($itemLV -and $itemLV.LookupId) {
+                $ids += $itemLV.LookupId
+            }
+        }
+    }
+    else {
+        if ($lv.LookupId) {
+            $ids += $lv.LookupId
+        }
+    }
+    return $ids
+}
+
+### 4. MergeKey bepalen per item (op basis van bestandsnaam zonder _DUPx)
+
+foreach ($item in $files) {
+    $fileName = $item["FileLeafRef"]
+    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
+
+    if ($baseName -match "^(.*)_DUP\d+$") {
+        $mergeKey = $Matches[1]
+    } else {
+        $mergeKey = $baseName
+    }
+
+    $item | Add-Member -NotePropertyName "MergeKey" -NotePropertyValue $mergeKey -Force
+}
+
+# Groepeer per MergeKey
+$groups = $files | Group-Object -Property MergeKey
+
+Write-Host "Aantal mogelijke groepen (MergeKey): $($groups.Count)"
+
+### 5. Merge-logica per groep
+
+$groupsProcessed = 0
+$totalDuplicatesRemoved = 0
+
+foreach ($group in $groups) {
+    $groupItems = $group.Group
+
+    if ($groupItems.Count -le 1) {
+        # Geen duplicates, niets te mergen
+        continue
+    }
+
+    $groupsProcessed++
+
+    Write-Host ""
+    Write-Host "=== Groep '$($group.Name)' ==="
+    foreach ($gi in $groupItems) {
+        Write-Host " - $($gi['FileRef'])"
+    }
+
+    # Master = item zonder _DUP in de naam, indien aanwezig
+    $master = $groupItems | Where-Object {
+        $bn = [System.IO.Path]::GetFileNameWithoutExtension($_["FileLeafRef"])
+        $bn -notmatch "_DUP\d+$"
+    } | Select-Object -First 1
+
+    if (-not $master) {
+        # Indien alles _DUP is, neem gewoon de eerste als master (laagste ID)
+        $master = $groupItems | Sort-Object { $_["ID"] } | Select-Object -First 1
+        Write-Host "Geen 'niet-DUP' bestand gevonden; neem item met laagste ID als master: $($master['FileRef'])" -ForegroundColor Yellow
+    }
+    else {
+        Write-Host "Master-bestand: $($master['FileRef'])"
+    }
+
+    # Duplicates = alle andere items in de groep
+    $duplicates = $groupItems | Where-Object { $_ -ne $master }
+
+    if ($duplicates.Count -eq 0) {
+        continue
+    }
+
+    Write-Host "Aantal duplicates in deze groep: $($duplicates.Count)"
+
+    $updateValues = @{}
+
+    ### 5a. Alle lookupvelden mergen
+
+    foreach ($fieldName in $validLookupFields) {
+
+        $masterLV  = $master[$fieldName]
+        $masterIds = Get-LookupIds $masterLV
+
+        $allIds = @()
+        $allIds += $masterIds
+
+        foreach ($dup in $duplicates) {
+            $dupLV  = $dup[$fieldName]
+            $dupIds = Get-LookupIds $dupLV
+            $allIds += $dupIds
+        }
+
+        $allIds = $allIds | Select-Object -Unique
+
+        if ($allIds.Count -eq 0) {
+            continue  # helemaal geen waarden in deze groep
+        }
+
+        $targetId = $null
+
+        if ($masterIds.Count -gt 0) {
+            # Master heeft al een waarde → behoud die
+            $targetId = $masterIds[0]
+
+            if ($allIds.Count -gt 1) {
+                Write-Host "  LET OP: meerdere verschillende lookupwaarden gevonden voor '$fieldName' in groep '$($group.Name)'. Master behoudt ID $targetId." -ForegroundColor Yellow
+            }
+        }
+        else {
+            # Master heeft nog geen waarde, kies eerste ID uit de verzameling
+            $targetId = $allIds[0]
+            if ($allIds.Count -gt 1) {
+                Write-Host "  LET OP: meerdere verschillende lookupwaarden gevonden voor '$fieldName' in groep '$($group.Name)'. Master krijgt eerste ID $targetId." -ForegroundColor Yellow
+            }
+        }
+
+        # Alleen updaten als master anders is of leeg
+        if ($masterIds.Count -eq 0 -or $masterIds[0] -ne $targetId) {
+            $updateValues[$fieldName] = $targetId
+            Write-Host "  Merge lookupveld $fieldName -> ID $targetId"
+        }
+    }
+
+    ### 5b. Metadata wegschrijven
+
+    if ($updateValues.Count -gt 0) {
+        if (-not $WhatIf) {
+            try {
+                Set-PnPListItem -List $LibraryName -Identity $master["ID"] -Values $updateValues -ErrorAction Stop | Out-Null
+                Write-Host "  Metadata geschreven naar master (ID $($master['ID']))"
+            }
+            catch {
+                Write-Host "  FOUT bij updaten van metadata op master-item ID $($master['ID']) :" -ForegroundColor Red
+                Write-Host $_
+            }
+        }
+        else {
+            Write-Host "  (WhatIf: metadata wordt NIET effectief geschreven)" -ForegroundColor Yellow
+        }
+    }
+    else {
+        Write-Host "Geen metadata te mergen voor deze groep."
+    }
+
+    ### 5c. Duplicates verwijderen
+
+    foreach ($dup in $duplicates) {
+        $dupUrl = $dup["FileRef"]
+
+        if ($WhatIf) {
+            Write-Host "  WOULD DELETE duplicate: $dupUrl" -ForegroundColor Yellow
+        }
+        else {
+            try {
+                Remove-PnPFile -ServerRelativeUrl $dupUrl -Recycle -Force -ErrorAction Stop
+                Write-Host "  VERWIJDERD (naar prullenbak): $dupUrl"
+                $totalDuplicatesRemoved++
+            }
+            catch {
+                Write-Host "  FOUT bij verwijderen van duplicate $dupUrl :" -ForegroundColor Red
+                Write-Host $_
+            }
+        }
+    }
+}
+
+Write-Host ""
+Write-Host "=== SAMENVATTING ==="
+Write-Host "Aantal groepen met duplicates verwerkt: $groupsProcessed"
+Write-Host "Aantal duplicates verwijderd: $totalDuplicatesRemoved"
