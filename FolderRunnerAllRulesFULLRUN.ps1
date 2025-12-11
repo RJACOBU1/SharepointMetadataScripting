@@ -269,6 +269,9 @@ function Get-MetadataForFile {
         elseif ($fileNameLower -like "*general*" -or $fileNameLower -like "*instruction*") {
             $values[$col_NameDocument] = "6.1 General safety instructions"
         }
+        elseif (($fileNameLower -like "*substance*" -or $fileNameLower -like "*restricted*") -and $fileNameLower -like "*report*") {
+            $values[$col_NameDocument] = "6.4 Restricted substance report"
+        }
     }
 
     if ($pathLower -like "*technical*") {
@@ -339,6 +342,10 @@ function Get-MetadataForFile {
     if ($pathLower -like "*service*") {
         $values[$col_EquipmentDocument] = "12. Supplier information"
         $values[$col_NameDocument]      = "12.1 Warranty & service agreement"
+
+        if ($fileNameLower -like "*supplier*" -or $fileNameLower -like "*contact*") {
+            $values[$col_NameDocument] = "12.2 Supplier contacts"
+        }
     }
 
     # -----------------------------------------------------
