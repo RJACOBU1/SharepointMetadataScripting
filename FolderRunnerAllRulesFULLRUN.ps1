@@ -14,7 +14,7 @@
 $listName = "Documents"
 
     # (server relative path na de site-URL, bv. /sites/TestZone/Shared Documents/Documents) of $null for everything.
-$rootFolderFilter = "/sites/TestZone/Shared Documents/010 Crossconveyor"
+$rootFolderFilter = "/sites/TestZone/Shared Documents/BOLD"
 
     # Velden (interne namen, _x0020_ = spatie)
 $col_EquipmentDocument   = "EquipmentDocument"     

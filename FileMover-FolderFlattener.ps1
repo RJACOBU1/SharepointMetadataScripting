@@ -5,10 +5,10 @@ param(
     # Naam van de documentbibliotheek
     [string]$LibraryName = "Documents",
 
-    [string]$SourceFolderRelativeUrl = "/sites/TestZone/Shared Documents/010 Crossconveyor",
+    # BRONMAP: enkel hier (en subfolders) uit moven
+    [string]$SourceFolderRelativeUrl = "/sites/TestZone/Shared Documents/BOLD",
 
-    # Doelmap (server-relative URL) waar alles vlak komt te staan
-    # Bijv.: "/sites/TestZone/Shared Documents/FLATTENED"
+    # DOELMAP: alles komt hier vlak te staan
     [string]$TargetFolderRelativeUrl = "/sites/TestZone/Shared Documents/FLATTENED",
 
     # Testmodus: toon wat er zou gebeuren, maar voer geen Move uit
@@ -16,14 +16,16 @@ param(
 )
 
 
-### 2. Controleren / aanmaken doelmap
+# ------------------------------------------------------------
+# 1) Doelmap controleren / aanmaken
+# ------------------------------------------------------------
 Write-Host "Controleren of doelmap bestaat: $TargetFolderRelativeUrl ..."
 $targetFolder = Get-PnPFolder -Url $TargetFolderRelativeUrl -ErrorAction SilentlyContinue
 
 if (-not $targetFolder) {
     Write-Host "Doelmap bestaat niet, aanmaken..."
 
-    $parentUrl = Split-Path $TargetFolderRelativeUrl -Parent
+    $parentUrl  = Split-Path $TargetFolderRelativeUrl -Parent
     $folderName = Split-Path $TargetFolderRelativeUrl -Leaf
 
     if (-not $WhatIf) {
@@ -34,16 +36,20 @@ if (-not $targetFolder) {
 }
 
 Write-Host "Doelmap OK: $TargetFolderRelativeUrl"
+Write-Host "Bronmap:   $SourceFolderRelativeUrl"
 
-### 3. Alle items ophalen
-Write-Host "Ophalen van alle items in lijst '$LibraryName' ..."
+# ------------------------------------------------------------
+# 2) Enkel items ophalen onder de BRONMAP (sneller + correct)
+# ------------------------------------------------------------
+Write-Host "Ophalen documenten onder bronmap '$SourceFolderRelativeUrl' ..."
 $list = Get-PnPList -Identity $LibraryName
 
 $items = Get-PnPListItem -List $list -PageSize 500 `
+    -FolderServerRelativeUrl $SourceFolderRelativeUrl `
     -Fields "FileLeafRef","FileRef","FSObjType" `
     -ScriptBlock { param($batch) $batch }
 
-Write-Host "Totaal aantal items in lijst: $($items.Count)"
+Write-Host "Aantal items gevonden onder bronmap: $($items.Count)"
 
 # Enkel bestanden, geen folders, en niet al in de doelmap
 $filesToMove = $items | Where-Object {
@@ -53,38 +59,22 @@ $filesToMove = $items | Where-Object {
 
 Write-Host "Aantal bestanden die verplaatst zullen worden: $($filesToMove.Count)"
 
-### 4. Flatten + duplicates veilig behandelen
-
-function Set-DuplicateMetaSafely {
-    param(
-        [Microsoft.SharePoint.Client.ListItem]$Item,
-        [string]$DuplicateGroupKey,
-        [string]$OriginalPath
-    )
-
-    # Deze functie probeert metadata te zetten, maar faalt stil als kolommen niet bestaan
-    try {
-        $values = @{}
-        if ($DuplicateGroupKey) { $values["DuplicateGroupKey"] = $DuplicateGroupKey }
-        if ($OriginalPath)      { $values["OriginalPath"]      = $OriginalPath }
-
-        if ($values.Count -gt 0) {
-            Set-PnPListItem -List $LibraryName -Identity $Item.Id -Values $values -ErrorAction Stop | Out-Null
-        }
-    }
-    catch {
-        # Kolom bestaat niet of andere meta-fout: we negeren dit om het script niet te breken
-        write-Host "geen path en groupkey"
-    }
-}
-
+# ------------------------------------------------------------
+# 3) Flatten + duplicates veilig behandelen
+# ------------------------------------------------------------
 $counter = 0
 
 foreach ($item in $filesToMove) {
     $counter++
 
-    $fileName = $item["FileLeafRef"]
+    $fileName  = $item["FileLeafRef"]
     $sourceUrl = $item["FileRef"]
+
+    # Extra beveiliging: nooit buiten bronmap verplaatsen
+    if ($sourceUrl -notlike "$SourceFolderRelativeUrl/*") {
+        Write-Host "SKIP (buiten bronmap): $sourceUrl" -ForegroundColor Yellow
+        continue
+    }
 
     $baseName  = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
     $extension = [System.IO.Path]::GetExtension($fileName)
@@ -95,7 +85,7 @@ foreach ($item in $filesToMove) {
     # Standaard doel-URL
     $targetFileUrl = "$TargetFolderRelativeUrl/$fileName"
 
-    # Check op duplicates in de doelmap
+    # Check op duplicates in de doelmap -> hernoem naar _DUP1, _DUP2, ...
     $dupIndex = 1
     $finalFileName = $fileName
 
@@ -107,18 +97,16 @@ foreach ($item in $filesToMove) {
 
     if ($WhatIf) {
         if ($finalFileName -ne $fileName) {
-            Write-Host "  WOULD MOVE (DUPLICATE):" -ForegroundColor Yellow
-            Write-Host "  From: $sourceUrl"
-            Write-Host "  To:   $targetFileUrl"
+            Write-Host "  WOULD MOVE (DUPLICATE-NAAM):" -ForegroundColor Yellow
         } else {
             Write-Host "  WOULD MOVE:" -ForegroundColor Yellow
-            Write-Host "  From: $sourceUrl"
-            Write-Host "  To:   $targetFileUrl"
         }
+        Write-Host "  From: $sourceUrl"
+        Write-Host "  To:   $targetFileUrl"
         continue
     }
 
-    # 1) File verplaatsen
+    # Verplaatsen
     try {
         Move-PnPFile -ServerRelativeUrl $sourceUrl -TargetUrl $targetFileUrl -Force -AllowSchemaMismatch -IgnoreVersionHistory:$false -ErrorAction Stop | Out-Null
 
@@ -131,15 +119,12 @@ foreach ($item in $filesToMove) {
         Write-Host "  To:   $targetFileUrl"
     }
     catch {
-        Write-Host "  FOUT bij verplaatsen van $sourceUrl -> $targetFileUrl" -ForegroundColor Red
-        Write-Host "  $_"
+        Write-Host "  FOUT bij verplaatsen:" -ForegroundColor Red
+        Write-Host "  From: $sourceUrl"
+        Write-Host "  To:   $targetFileUrl"
+        Write-Host $_
         continue
     }
-
-    # 2) Metadata instellen om later te kunnen groeperen/mergen
-    #    DuplicateGroupKey = originele bestandsnaam zonder extensie
-    #    OriginalPath      = oorspronkelijke FileRef vóór verplaatsing
-    Set-DuplicateMetaSafely -Item $item -DuplicateGroupKey $baseName -OriginalPath $sourceUrl
 }
 
 Write-Host ""
