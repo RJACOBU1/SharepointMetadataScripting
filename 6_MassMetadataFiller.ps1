@@ -1,5 +1,5 @@
 # =============== CONFIG ===============
-$siteUrl = "https://intranet.volvocars.net/sites/TestZone"   # <-- zelfde site als in je andere scripts
+
 $listName = "Documents"
 
 # Enkel items onder deze folder (zelfde stijl als je andere script)
