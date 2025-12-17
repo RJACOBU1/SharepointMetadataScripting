@@ -1,0 +1,7 @@
+Connect-PnPOnline -Url "https://intranet.volvocars.net/sites/TestZone" `
+     -ClientId "10598e56-f5f6-42aa-bbcf-549965e26add" `
+     -Interactive
+
+Connect-PnPOnline -Url "https://intranet.volvocars.net/sites/ProjectSharepointTemplatesite" `
+     -ClientId "10598e56-f5f6-42aa-bbcf-549965e26add" `
+     -Interactive
